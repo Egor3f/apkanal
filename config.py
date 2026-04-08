@@ -152,10 +152,7 @@ FINDINGS_SCHEMA = {
             "items": {
                 "type": "object",
                 "properties": {
-                    "severity": {
-                        "type": "string",
-                        "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"],
-                    },
+                    "severity": {"type": "string"},
                     "title": {"type": "string"},
                     "description": {"type": "string"},
                     "file_path": {"type": "string"},
@@ -163,12 +160,12 @@ FINDINGS_SCHEMA = {
                     "confidence": {"type": "number"},
                     "category": {"type": "string"},
                 },
-                "required": ["severity", "title", "description", "file_path", "confidence", "category"],
+                "required": ["severity", "title", "description", "file_path"],
             },
         },
         "summary": {"type": "string"},
     },
-    "required": ["findings", "summary"],
+    "required": ["findings"],
 }
 
 MANIFEST_SCHEMA = {
@@ -180,10 +177,10 @@ MANIFEST_SCHEMA = {
                 "type": "object",
                 "properties": {
                     "permission": {"type": "string"},
-                    "risk_level": {"type": "string", "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]},
+                    "risk_level": {"type": "string"},
                     "explanation": {"type": "string"},
                 },
-                "required": ["permission", "risk_level", "explanation"],
+                "required": ["permission", "risk_level"],
             },
         },
         "component_risks": {
@@ -195,16 +192,19 @@ MANIFEST_SCHEMA = {
                     "risk": {"type": "string"},
                     "explanation": {"type": "string"},
                 },
-                "required": ["component", "risk", "explanation"],
+                "required": ["component", "risk"],
             },
         },
-        "overall_risk_level": {"type": "string", "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]},
+        "overall_risk_level": {"type": "string"},
         "summary": {"type": "string"},
     },
-    "required": ["permissions_analysis", "component_risks", "overall_risk_level", "summary"],
+    "required": ["overall_risk_level", "summary"],
 }
 
 # ---------------------------------------------------------------------------
 # Chunk size
 # ---------------------------------------------------------------------------
 MAX_CHUNK_CHARS = 30_000  # ~8K tokens, smaller chunks for faster feedback
+PARALLEL_CHUNKS = 8
+STRIP_IMPORTS = True  # Remove import lines from source before sending to LLM
+STRIP_METADATA = True  # Remove @Metadata(...) Kotlin compiler annotations

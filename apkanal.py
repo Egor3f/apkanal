@@ -25,6 +25,9 @@ from config import (
     FINDINGS_SCHEMA,
     MANIFEST_SCHEMA,
     MAX_CHUNK_CHARS,
+    PARALLEL_CHUNKS,
+    STRIP_IMPORTS,
+    STRIP_METADATA,
     SUSPICION_PATTERNS,
     SYSTEM_PROMPT_ANALYSIS,
     SYSTEM_PROMPT_INTERACTIVE,
@@ -296,7 +299,15 @@ def collect_source_files(decompile_dir: Path, tool: str) -> list[SourceFile]:
             continue
         try:
             raw = p.read_text(errors="replace")
-            content = "\n".join(line.lstrip() for line in raw.splitlines())
+            if STRIP_METADATA:
+                raw = re.sub(r'@Metadata\([^)]*\)\n?', '', raw, flags=re.DOTALL)
+            lines = []
+            for line in raw.splitlines():
+                stripped = line.lstrip()
+                if STRIP_IMPORTS and stripped.startswith("import "):
+                    continue
+                lines.append(stripped)
+            content = "\n".join(lines)
         except OSError:
             continue
         package = str(Path(relative).parent).replace(os.sep, ".")
@@ -502,10 +513,15 @@ def claude_analyze(prompt: str, system_prompt: str, json_schema: dict | None = N
     parsed = None
     if isinstance(wrapper, dict):
         if wrapper.get("is_error"):
-            err = wrapper.get("result", "Unknown error")
-            error(f"Claude returned error: {err}")
+            err = wrapper.get("result") or wrapper.get("error") or ""
+            # Log full response for debugging
+            err_log = log_dir / f"{log_prefix}_error.json"
+            err_log.write_text(json.dumps(wrapper, indent=2, default=str))
+            detail = err if isinstance(err, str) else json.dumps(err, default=str)
+            error(f"Claude returned error: {detail[:500]}")
+            error(f"Full error logged to {err_log}")
             # Don't cache errors
-            return {"findings": [], "summary": f"Error: {err}"} if json_schema else f"Error: {err}"
+            return {"findings": [], "summary": f"Error: {detail[:200]}"} if json_schema else f"Error: {detail}"
 
         if json_schema:
             if "structured_output" in wrapper and wrapper["structured_output"]:
@@ -613,7 +629,6 @@ def _load_state(state_path: Path) -> tuple[list[int], list[Finding], dict] | Non
         return None
 
 
-PARALLEL_CHUNKS = 3
 
 
 def analyze_chunks(chunks: list[Chunk], manifest_summary: str, model: str,
