@@ -510,6 +510,8 @@ def _input_screen(stdscr, title: str, placeholder: str) -> str | None:
             elif wch == "\x1b":  # Escape
                 curses.curs_set(0)
                 return None
+            elif wch in ("\x7f", "\x08"):  # Backspace
+                buf = buf[:-1]
             elif ord(wch) >= 32:
                 buf += wch
 

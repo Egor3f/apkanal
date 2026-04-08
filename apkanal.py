@@ -708,8 +708,8 @@ def analyze_chunks(chunks: list[Chunk], manifest_summary: str, model: str,
         i = batch_end
 
     if not interrupted:
-        if state_path.exists():
-            state_path.unlink()
+        # Save final state for future interactive sessions
+        _save_state(state_path, completed_chunks, all_findings, manifest_result)
 
     severity_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
     all_findings.sort(key=lambda f: (severity_order.get(f.severity, 5), -f.confidence))
@@ -1031,7 +1031,6 @@ def main():
         prev_state = _load_state(state_path)
         if prev_state and decompile_dir.exists():
             _, findings, manifest_result = prev_state
-            # Detect decompiler tool
             tool = "jadx" if (decompile_dir / "sources").exists() else "apktool"
             source_files = collect_source_files(decompile_dir, tool)
             source_files = prescan_files(source_files)
