@@ -459,11 +459,9 @@ def main_menu(stdscr) -> tuple[str | None, Path | None, str]:
                     if result:
                         return result, None, "analyze"
                 elif val == "file":
-                    result = _input_screen(stdscr, "Enter APK file path:", "APK path")
-                    if result:
-                        p = Path(result)
-                        if p.exists() and p.suffix == ".apk":
-                            return p.stem, p, "analyze"
+                    p = _file_browser(stdscr)
+                    if p:
+                        return p.stem, p, "analyze"
 
 
 def _input_screen(stdscr, title: str, placeholder: str) -> str | None:
@@ -517,6 +515,110 @@ def _input_screen(stdscr, title: str, placeholder: str) -> str | None:
 
     curses.curs_set(0)
     return None
+
+
+def _file_browser(stdscr, start_dir: Path | None = None) -> Path | None:
+    """File browser for selecting APK files. Returns Path or None."""
+    curses.curs_set(0)
+    cwd = (start_dir or Path.cwd()).resolve()
+    sel = 0
+    scroll = 0
+
+    def _list_dir(d: Path) -> list[tuple[str, Path, bool]]:
+        """Return (display_name, path, is_dir) sorted: dirs first, then .apk files."""
+        entries = []
+        try:
+            for item in sorted(d.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
+                if item.name.startswith("."):
+                    continue
+                if item.is_dir():
+                    entries.append((item.name + "/", item, True))
+                elif item.suffix.lower() == ".apk":
+                    size_mb = item.stat().st_size / (1024 * 1024)
+                    entries.append((f"{item.name}  ({size_mb:.1f} MB)", item, False))
+        except PermissionError:
+            pass
+        return entries
+
+    entries = _list_dir(cwd)
+
+    while True:
+        stdscr.clear()
+        h, w = stdscr.getmaxyx()
+        list_h = h - 4
+
+        title = str(cwd)
+        if len(title) > w - 6:
+            title = "..." + title[-(w - 9):]
+        _draw_box(stdscr, title)
+        _draw_statusbar(stdscr, "\u2191\u2193 Navigate   Enter Open   q Back/Quit")
+
+        if sel >= len(entries) + 1:  # +1 for ".."
+            sel = max(0, len(entries))
+        if sel < scroll:
+            scroll = sel
+        if sel >= scroll + list_h:
+            scroll = sel - list_h + 1
+
+        # Draw ".." entry
+        all_items = [("../", cwd.parent, True)] + entries
+
+        for i in range(list_h):
+            idx = scroll + i
+            if idx >= len(all_items):
+                break
+            y = 1 + i
+            name, path, is_dir = all_items[idx]
+
+            if idx == sel:
+                bg = " " * (w - 4)
+                _safe_addstr(stdscr, y, 2, bg, curses.color_pair(5))
+                _safe_addstr(stdscr, y, 3, "\u25b8 ", curses.color_pair(5))
+                _safe_addstr(stdscr, y, 5, name, curses.color_pair(5) | curses.A_BOLD)
+            else:
+                if is_dir:
+                    _safe_addstr(stdscr, y, 5, name, curses.A_BOLD)
+                else:
+                    _safe_addstr(stdscr, y, 5, name)
+
+        if len(all_items) > list_h:
+            _safe_addstr(stdscr, h - 2, w - 12, f" {sel + 1}/{len(all_items)} ", curses.A_DIM)
+
+        stdscr.refresh()
+        key = stdscr.getch()
+
+        if key == ord("q"):
+            return None
+
+        elif key == curses.KEY_UP or key == ord("k"):
+            sel = max(0, sel - 1)
+
+        elif key == curses.KEY_DOWN or key == ord("j"):
+            sel = min(len(all_items) - 1, sel + 1)
+
+        elif key == curses.KEY_PPAGE:
+            sel = max(0, sel - list_h)
+
+        elif key == curses.KEY_NPAGE:
+            sel = min(len(all_items) - 1, sel + list_h)
+
+        elif key == curses.KEY_HOME:
+            sel = 0
+            scroll = 0
+
+        elif key == curses.KEY_END:
+            sel = len(all_items) - 1
+
+        elif key in (ord("\n"), curses.KEY_ENTER):
+            if sel < len(all_items):
+                name, path, is_dir = all_items[sel]
+                if is_dir:
+                    cwd = path.resolve()
+                    entries = _list_dir(cwd)
+                    sel = 0
+                    scroll = 0
+                else:
+                    return path
 
 
 def _search_screen(stdscr) -> str | None:

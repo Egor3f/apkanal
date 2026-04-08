@@ -1028,8 +1028,12 @@ def main():
             warn("No saved analysis state found — running full analysis")
 
 
-    if not apk_path:
-        # Check if APK was already pulled
+    # --- Check if already decompiled ---
+    decompile_dir = work_dir / "decompiled"
+    already_decompiled = (decompile_dir / DECOMPILE_DONE_MARKER).exists()
+
+    if not apk_path and not already_decompiled:
+        # Need APK — check local copy or pull from device
         existing_apk = work_dir / f"{package_name}.apk"
         if existing_apk.exists():
             apk_path = existing_apk
@@ -1039,9 +1043,9 @@ def main():
                 sys.exit(1)
             apk_path = pull_apk(package_name, work_dir)
 
-    if not apk_path or not apk_path.exists():
-        error("Could not obtain APK file")
-        sys.exit(1)
+        if not apk_path or not apk_path.exists():
+            error("Could not obtain APK file")
+            sys.exit(1)
 
     global _current_package
     _current_package = package_name
@@ -1049,9 +1053,12 @@ def main():
     log(f"Working directory: {work_dir}")
 
     # --- Decompile ---
-    decompile_dir = work_dir / "decompiled"
-    decompile_dir, tool = decompile_apk(apk_path, decompile_dir)
-    log(f"Decompiled with {tool}")
+    if already_decompiled:
+        tool = "jadx" if (decompile_dir / "sources").exists() else "apktool"
+        log(f"Using existing decompilation ({tool})")
+    else:
+        decompile_dir, tool = decompile_apk(apk_path, decompile_dir)
+        log(f"Decompiled with {tool}")
 
     # --- Collect and filter ---
     log("Collecting source files...")

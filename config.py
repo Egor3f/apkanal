@@ -6,13 +6,17 @@
 EXCLUDED_PACKAGES = [
     "android/", "androidx/", "com/google/android/", "com/google/protobuf/",
     "com/google/gson/", "com/google/firebase/", "com/google/flatbuffers/",
+    "com/google/common/", "com/google/errorprone/", "com/google/thirdparty/",
     "kotlin/", "kotlinx/", "java/", "javax/",
     "org/apache/", "org/json/", "org/xml/", "org/w3c/",
+    "org/checkerframework/", "org/codehaus/",
     "com/squareup/", "io/reactivex/", "io/realm/",
+    "io/grpc/", "io/perfmark/",
     "com/facebook/react/", "org/chromium/",
     "okhttp3/", "okio/", "retrofit2/",
     "dagger/", "com/bumptech/glide/",
     "org/intellij/", "org/jetbrains/",
+    "_COROUTINE/",
 ]
 
 EXCLUDED_FILE_PATTERNS = [
